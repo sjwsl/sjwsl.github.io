@@ -90,7 +90,7 @@ v1.assign(v2.begin() + v2.size() / 2, v2.end());
 
 使用区间函数可以使代码更清晰，且很多时候效率更高。
 
-常用的区间函数（`iterator` 指随机访问迭代器，`InputIterator` 接受除输出迭代器外的所有迭代器）
+**常用的区间函数（`iterator` 指随机访问迭代器，`InputIterator` 接受除输出迭代器外的所有迭代器）**
 - 区间构造函数
 
 ```c++
@@ -117,6 +117,7 @@ iterator container::erase(iterator begin, iterator end);
 void container::erase(iterator begin, iterator end);
 ```
 - 区间赋值
+
 ```c++
 void container::assign(InputIterator begin, InputIterator end);
 ```
