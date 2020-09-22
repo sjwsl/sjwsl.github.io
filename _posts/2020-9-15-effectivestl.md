@@ -92,6 +92,7 @@ v1.assign(v2.begin() + v2.size() / 2, v2.end());
 
 常用的区间函数（`iterator` 指随机访问迭代器，`InputIterator` 接受除输出迭代器外的所有迭代器）
 - 区间构造函数
+
 ```c++
 container::container(InputIterator begin, InputIterator end);
 ```
