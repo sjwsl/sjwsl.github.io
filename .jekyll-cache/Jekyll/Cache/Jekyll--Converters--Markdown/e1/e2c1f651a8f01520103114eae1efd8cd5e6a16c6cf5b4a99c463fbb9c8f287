@@ -1,0 +1,67 @@
+I"<p><em>Effective Modern C++</em> reading notes</p>
+
+<h2 id="type-dedution">Type Dedution</h2>
+
+<h3 id="auto-and-decltypeauto"><code class="language-plaintext highlighter-rouge">auto</code> and <code class="language-plaintext highlighter-rouge">decltype(auto)</code></h3>
+
+<p><code class="language-plaintext highlighter-rouge">auto</code> follows the template argument deduction rules and is always an object type; <code class="language-plaintext highlighter-rouge">decltype(auto)</code> follows the <code class="language-plaintext highlighter-rouge">decltype</code> rules for deducing reference types based on value categories. So if we have</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">x</span><span class="p">;</span>
+<span class="kt">int</span> <span class="o">&amp;&amp;</span> <span class="n">f</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>then</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>expression    auto       decltype(auto)
+----------------------------------------
+10            int        int
+x             int        int
+(x)           int        int &amp;
+f()           int        int &amp;&amp;
+</code></pre></div></div>
+
+<h2 id="rvalue-references-move-semantics-and-perfect-forwarding">Rvalue References, Move Semantics, and Perfect Forwarding</h2>
+
+<h3 id="lvalue-and-rvalue">lvalue and rvalue</h3>
+
+<p>C++11’s most pervasive feature is probably move semantics, and the foundation of move semantics is distinguishing expressions that are rvalues from those that are lvalues.</p>
+
+<p>A useful heuristic to determine whether an expression is an lvalue is to ask if you can take its address. If you can, it typically is. If you can’t, it’s usually an rvalue.</p>
+
+<p>It’s especially important to remember this when dealing with a parameter of rvalue reference type, because the parameter itself is always an lvalue:</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Widget</span> <span class="p">{</span>
+<span class="nl">public:</span>
+  <span class="n">Widget</span><span class="p">(</span><span class="n">Widget</span><span class="o">&amp;&amp;</span> <span class="n">rhs</span><span class="p">);</span> <span class="c1">// rhs is an lvalue, though it has an rvalue reference type </span>
+<span class="p">};</span>
+</code></pre></div></div>
+<p><strong>Remember the type of an expression is independent of whether the expression is an lvalue or an rvalue.</strong></p>
+
+<h3 id="stdmove-and-stdforward"><code class="language-plaintext highlighter-rouge">std::move</code> and <code class="language-plaintext highlighter-rouge">std::forward</code></h3>
+
+<p>At runtime, neither of <code class="language-plaintext highlighter-rouge">std::move</code> and <code class="language-plaintext highlighter-rouge">std::forward</code> does anything at all.</p>
+
+<p>Actually, <code class="language-plaintext highlighter-rouge">std::move</code> <strong>unconditionally</strong> casts its argument to an rvalue, while <code class="language-plaintext highlighter-rouge">std::forward</code> performs this cast only if a particular condition is fulfilled.</p>
+
+<p>Here’s a sample implementation of <code class="language-plaintext highlighter-rouge">std::move</code> in C++11</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">T</span><span class="p">&gt;</span> <span class="c1">// in namespace std</span>
+<span class="k">typename</span> <span class="n">remove_reference</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">type</span><span class="o">&amp;&amp;</span>
+<span class="n">move</span><span class="p">(</span><span class="n">T</span><span class="o">&amp;&amp;</span> <span class="n">param</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">using</span> <span class="n">ReturnType</span> <span class="o">=</span> <span class="k">typename</span> <span class="n">remove_reference</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;::</span><span class="n">type</span><span class="o">&amp;&amp;</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="o">&gt;</span><span class="p">(</span><span class="n">param</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In C++14, thanks to <strong>function return type dedution</strong> and STL’s alias template <code class="language-plaintext highlighter-rouge">std::remove_reference_t</code>, <code class="language-plaintext highlighter-rouge">std::move</code> can be written this way</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">T</span><span class="p">&gt;</span> <span class="c1">// C++14; still in namespace std</span>
+<span class="k">decltype</span><span class="p">(</span><span class="k">auto</span><span class="p">)</span> <span class="n">move</span><span class="p">(</span><span class="n">T</span><span class="o">&amp;&amp;</span> <span class="n">param</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">using</span> <span class="n">ReturnType</span> <span class="o">=</span> <span class="n">remove_reference_t</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&amp;&amp;</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="o">&gt;</span><span class="p">(</span><span class="n">param</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+:ET

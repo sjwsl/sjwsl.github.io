@@ -1,0 +1,156 @@
+I"]&<p>The Google File System</p>
+
+<p>存储是分布式系统最重要的抽象，分布式系统中可能需要各种各样的接口，然而简单的存储接口往往就非常通用。我们将关注两个问题，存储接口以及系统内部的设计。</p>
+
+<h3 id="分布式存储的挑战">分布式存储的挑战</h3>
+
+<p>需要性能提升 -&gt; 数据分片 -&gt; 更多计算机 -&gt; 更多错误 -&gt; 需要容错 -&gt; 复制 -&gt; 数据不一致 -&gt; 需要维持一致性 -&gt; 性能下降</p>
+
+<h3 id="一种错误的设计">一种错误的设计</h3>
+
+<p>系统有两台服务器，每个服务器都有数据的一份完整拷贝，写请求必须在两台服务器上执行，而读请求只需要在一台服务器执行。</p>
+
+<p>问题在于如果两个客户端同时发起了不同的写请求，我们无法保证两台服务器以相同的顺序接受并处理。这就导致了数据的不一致。</p>
+
+<p>当然，这里的问题是可以修复的，修复需要服务器之间更多的通信，并且复杂度也会提升。</p>
+
+<h2 id="gfs">GFS</h2>
+
+<h3 id="背景">背景</h3>
+
+<p>在 2003 年，学术界已经有很多关于分布式系统的研究，然而工业界很少有应用的例子。GFS 是 Google 这样拥有大量数据的公司第一次构建严格意义上的分布式系统。</p>
+
+<h3 id="特征">特征</h3>
+
+<ul>
+  <li>big and fast</li>
+  <li>全局有效</li>
+  <li>文件自动分片（sharding）
+    <ul>
+      <li>保存比单个磁盘更大的文件</li>
+      <li>支持并行读写（例如 MapReduce）</li>
+    </ul>
+  </li>
+  <li>自动的故障恢复</li>
+  <li>唯一的 Master 节点</li>
+  <li>为大型的顺序文件读写定制</li>
+  <li>关注巨大的吞吐量，并不太在意延迟</li>
+  <li>数据存储在单一的数据中心</li>
+  <li>Google 内部使用</li>
+</ul>
+
+<h3 id="意义">意义</h3>
+
+<p>GFS 描述了一个真正运行在成百上千台计算机上的系统，这个规模远远超过了学术界之前建立的系统。</p>
+
+<p>GFS 认为存储系统具有弱一致性也是可以的，这和学术界的传统观点相悖。GFS 并不保证返回正确的数据，正因如此它提供了更好的性能。这也是因为 Google 所面临问题（例如网站排序）的容错程度这类系统更好，偶尔的错误数据是可以被接受的。另外论文中提到，应用程序应该对数据做校验，并明确标记数据的边界，这样在 GFS 返回错误数据可以做相应处理。</p>
+
+<p>GFS 使用了单 Master 节点的设计，而学术界通常使用多 Master 节点。</p>
+
+<h3 id="结构">结构</h3>
+
+<p>GFS 包括一个 Master 节点和大量的 chunk servers，每个 chunk server 上有1-2块磁盘。</p>
+
+<p>GFS 将每个文件分为若干 64MB 的 chunk，每个 chunk 可以用唯一的 chunk handle 标识，并存储在三个 chunk servers 中。</p>
+
+<p>Master 保存了文件和 chunk 的信息，主要有两个表单</p>
+<ul>
+  <li>文件名到 chunk handles 的映射</li>
+  <li>每个 chunk handle 的具体信息
+    <ul>
+      <li>存储在哪三个 chunk servers</li>
+      <li>chunk 的版本号</li>
+      <li>哪个 chunk server 存储 primary chunk</li>
+      <li>primary chunk 的租约过期时间（lease expiration）</li>
+    </ul>
+  </li>
+</ul>
+
+<p>这些数据都存储在内存中，为了让 Master 重启后不会丢失数据，有些数据会存储在磁盘上（以 log 和 checkpoint 的方式）。这些数据有</p>
+<ul>
+  <li>文件名到 chunk handles 的映射</li>
+  <li>每个 chunk 的版本号
+其他数据都不用写入磁盘。</li>
+</ul>
+
+<h3 id="读文件">读文件</h3>
+
+<p>对于读请求，客户端会发送文件名和 offset 给 Master。Master 通过文件名和 offset/64MB 可以在 chunk handles 表单中得到对应的 chunk handle，从而得到 chunk servers 数组。然后，Master 把 chunk handle 和 chunk servers 返回给客户端。</p>
+
+<p>现在客户端会从 chunk servers 中选择一个网络上最近的来读取数据。这里客户端会缓存 chunk handle 和服务器的对应关系，再次读取相同的 chunk 时，就不用访问 Master。</p>
+
+<p>然后客户端把 chunk handle 和 offset 发送给选中的 chunk server。chunk server 把每个 chunk 存储为独立的 Linux 文件，按照 handle 命名。所以，chunk server 只需要按照 chunk handle 找到对应的文件，然后读取对应的数据段返回给客户端。</p>
+
+<h3 id="写文件">写文件</h3>
+
+<p>关于写请求，我们这里只考虑数据的追加（record append）。因为这是 GFS 绝大多数使用的情景，例如多路归并、生产者消费者模型。当然，GFS 也支持普遍意义的写操作，但是没有做特别的优化。</p>
+
+<p>对于 record append 操作，客户端首先向 Master 询问文件最后一个 chunk 的位置。然后 Master 会检查这个 chunk 是否有 primary 副本，如果没有，Master 会执行下列步骤</p>
+<ol>
+  <li>寻找所有存储最新版本的 chunk servers，如果没有找到，报错</li>
+  <li>在这些 chunk servers 中选择一个作为 primary，其余作为 secondaries</li>
+  <li>Master 版本号自增，并且向磁盘写入一条 log，同时记录 60s 后租约到期</li>
+  <li>告知选定的 chunk servers 它们的角色以及最新的版本号</li>
+  <li>chunk servers 把版本号写入磁盘</li>
+</ol>
+
+<p>这时 Master 会把 primary 和 secondaries 返回给客户端。然后客户端会首先把要追加的数据临时发送给所有的副本，这里的发送方式是可以优化的。论文中提到，数据链式地（而不是树状）从客户端流向每个 chunk servers，这可以最大限度利用每两个计算机之间的带宽。</p>
+
+<p><img src="/assets/images/GFS1.png" alt="" /></p>
+
+<p>当所有 chunk servers 确认收到数据后，客户端会通知 primary 追加数据。</p>
+
+<p>primary 会检查租约是否到期并确保 chunk 有足够的空间，然后把数据追加到 chunk 文件的末尾。然后 primary 会通知所有的 secondaries 按照 primary 的偏移量追加数据。</p>
+
+<p>对于 secondary，如果追加成功，会回复 primary。如果任何一个 secondary 没有回复，或者回复了写入失败，primary 会向客户端返回失败。这时这个文件处于 inconsistent 的状态，primary 和 secondaries 的任何一个子集可能追加了数据，其他的副本则没有追加。</p>
+
+<p>对于客户端，如果得到写入失败，那他应该重新发起整个追加请求。</p>
+
+<h3 id="一致性">一致性</h3>
+
+<p>GFS 是弱一致性的系统，但它提供了一些保证。</p>
+
+<p>文件 namespace 的更改（例如 create）是原子的，这通过 Master 的 namespace lock 来保证。</p>
+
+<p>在写操作后 chunk 的状态取决于写操作的类型、是否成功、是否是并发修改。</p>
+
+<p>我们定义三种状态：defined，consistent but undefined，inconsistent</p>
+
+<p>如果所有副本的数据都是完全相同的，我们称 chunk 是 consistent 的。如果 chunk 是 consistent 的并且修改和预期一致，或者说客户端可以准确读到自己某次写入的数据，那么我们称 chunk 是 defined 的。</p>
+
+<p>GFS 保证 append 是 defined 或 inconsistent 的。因为每个 append 请求都是原子的，primary 确定 offset 后会发送给 secondaries 和客户端，如果成功 append，客户端按照返回的 offset 读到的一定是自己 append 的数据。而并发的随机 write 操作即使返回成功，也可能存在 consistent but undefined 的状态。</p>
+
+<p><img src="/assets/images/GFS2.png" alt="" /></p>
+
+<p>append 失败后 chunk 处在 inconsistent 的状态，客户端在收到成功之前会不断重试请求，由于 offset 是由 server 确定的（这也是 append 和 write 最大的区别），inconsistent 只是会导致 chunk 中出现无意义的空洞。</p>
+
+<p><img src="/assets/images/GFS3.png" alt="" /></p>
+
+<p>而 GFS 会对这些垃圾数据做一定的处理，比如用 identifier 忽略这些 record，定期用 checksum 检查数据等等。</p>
+
+<p>另外，客户端通常也会做一些措施来应对 inconsistent，在论文 2.7.2 中有更多细节。</p>
+
+<h3 id="缺点">缺点</h3>
+
+<p>单 Master 节点降低了系统复杂度，但是也带来了很多问题。随着 chunk 数量增多，Master 要保存的信息越来越多，可能会耗尽内存。另外，所有客户端的请求都要经过 Master，CPU 也可能会被耗尽。</p>
+
+<p>chunk servers 对于小文件的处理并不高效。</p>
+
+<p>GFS 保证的一致性从某种程度上来说太弱了。</p>
+
+<p>Master 节点的故障切换不是自动的，需要人工干预，且可能需要几十分钟甚至更长的时间来处理。</p>
+
+<h3 id="其他细节">其他细节</h3>
+
+<h4 id="写时复制">写时复制</h4>
+
+<p>GFS 的 snapshot 采用写时复制的方式。当客户端创建 snapshot 时，并不直接复制 chunk，而是使这个 chunk 的引用计数增加。当引用计数大于 1 的 chunk 要被修改之前，才真正复制 chunk。这样可以避免复制实际没有改动的 chunk。</p>
+
+<h4 id="租约">租约</h4>
+
+<p>租约的设计是为了避免任何时候出现两个 primary。当 Master 无法连接到 primary 时，可能是 primary 挂了，也可能只是网络的问题，primary 仍然在为客户端服务。这时 Master 不会重新指定另一个 primary，而是一直等到租约过期才提供服务。</p>
+
+<h4 id="chunk-size">chunk size</h4>
+
+<p>GFS 的 chunk size 默认为 64MB，这是一个很大的数。这主要是为了减少 Master 中 meta 信息的大小，避免从客户端从 Master 读取大量信息。然而这样做的缺点是，小于 64MB 的文件并不会获得并行性。</p>
+:ET

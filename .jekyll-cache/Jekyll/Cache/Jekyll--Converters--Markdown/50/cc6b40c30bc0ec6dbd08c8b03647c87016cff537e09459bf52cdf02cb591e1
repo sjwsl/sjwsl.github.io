@@ -1,0 +1,12 @@
+I"˜<p>Some useful links for MIT 6.824 Distributed Systems</p>
+
+<ul>
+  <li><a href="https://pdos.csail.mit.edu/6.824/schedule.html">Schedule</a></li>
+  <li><a href="https://pdos.csail.mit.edu/6.824/papers/mapreduce.pdf">MapReduce</a></li>
+  <li><a href="https://pdos.csail.mit.edu/6.824/papers/gfs.pdf">GFS paper</a></li>
+  <li><a href="https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf">Raft paper</a></li>
+  <li><a href="https://thesquareplanet.com/blog/students-guide-to-raft/">Raft Guide</a></li>
+  <li><a href="https://raft.github.io">Raft site</a></li>
+  <li><a href="https://pdos.csail.mit.edu/6.824/papers/zookeeper.pdf">ZooKeeper paper</a></li>
+</ul>
+:ET

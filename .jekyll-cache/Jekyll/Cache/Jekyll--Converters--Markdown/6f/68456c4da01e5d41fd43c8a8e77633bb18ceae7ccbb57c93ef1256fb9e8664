@@ -1,0 +1,69 @@
+I"�<p>Formerly Google Commandline Flags</p>
+
+<p><a href="https://github.com/gflags/gflags">https://github.com/gflags/gflags</a></p>
+
+<ul>
+  <li>
+    <p>定义参数</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">DEFINE_int32</span><span class="p">(</span><span class="n">ai</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="s">"alarm_interval"</span><span class="p">);</span>
+</code></pre></div>    </div>
+
+    <p>定义一个 -ai 参数，全名为 alarm_interval，默认值是 60。</p>
+
+    <p>主函数第一行添加</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">google</span><span class="o">::</span><span class="n">ParseCommandLineFlags</span><span class="p">(</span><span class="o">&amp;</span><span class="n">argc</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">argv</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+</code></pre></div>    </div>
+
+    <p>在命令行输入</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">.</span><span class="o">/</span><span class="n">tools</span> <span class="o">-</span><span class="n">ai</span> <span class="mi">50</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<p>​  之后获取 FLAGS_ai 的值为 50</p>
+
+<ul>
+  <li>
+    <p>显示帮助信息</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">google</span><span class="o">::</span><span class="n">ShowUsageWithFlagsRestrict</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">"tools"</span><span class="p">);</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>定义函数</p>
+
+    <p>定义函数可以使一个 tools 实现多种功能。</p>
+
+    <p>首先像之前一样添加参数</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">DEFINE_string</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">"UNKNOW"</span><span class="p">,</span> <span class="s">"func"</span><span class="p">);</span>
+</code></pre></div>    </div>
+
+    <p>添加执行函数的宏定义</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#define DECLARE_FUNC(func, help)\		                 
+</span><span class="k">if</span> <span class="p">(</span><span class="n">FLAGS_f</span> <span class="o">==</span> <span class="err">#</span><span class="n">func</span><span class="p">)</span> <span class="p">{</span>\
+  <span class="n">func</span><span class="p">();</span>\
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>\
+<span class="p">}</span>																
+</code></pre></div>    </div>
+
+    <p>如果已经定义了函数 <code class="language-plaintext highlighter-rouge">void Work()</code></p>
+
+    <p>就可以声明</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">DECLARE_FUNC</span><span class="p">(</span><span class="n">Work</span><span class="p">,</span> <span class="s">"-ai alarm_interval"</span><span class="p">);</span>
+</code></pre></div>    </div>
+
+    <p>在命令行输入</p>
+
+    <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">.</span><span class="o">/</span><span class="n">tools</span> <span class="o">-</span><span class="n">f</span> <span class="n">Work</span> <span class="o">-</span><span class="n">ai</span> <span class="mi">50</span>
+</code></pre></div>    </div>
+
+    <p>就可以执行 Work 函数，并且传入 FLAGS_ai = 50</p>
+  </li>
+</ul>
+:ET

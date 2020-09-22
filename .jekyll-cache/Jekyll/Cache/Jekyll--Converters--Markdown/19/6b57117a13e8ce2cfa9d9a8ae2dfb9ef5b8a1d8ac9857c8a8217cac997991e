@@ -1,0 +1,197 @@
+I"7O<p><a href="https://pdos.csail.mit.edu/6.824/labs/lab-mr.html">https://pdos.csail.mit.edu/6.824/labs/lab-mr.html</a></p>
+
+<h3 id="goal">Goal</h3>
+
+<p>用 Go 语言实现一个简单的 MapReduce 框架，master 和 worker 之间用 RPC 通信。<code class="language-plaintext highlighter-rouge">main</code> 目录下包含了 master 和 worker 的入口，这部分不需要改动。我们要修改的文件是 <code class="language-plaintext highlighter-rouge">mr/master.go</code>、<code class="language-plaintext highlighter-rouge">mr/worker.go</code>、<code class="language-plaintext highlighter-rouge">mr/rpc.go</code>，分别对应了 master 和 worker 的实现，以及所需 RPC 的定义。</p>
+
+<h3 id="overview">Overview</h3>
+
+<p>MapReduce 本质上是 kv 到 kv 的映射过程。以 WordCount 为例，Map 的过程我们可以理解为 <code class="language-plaintext highlighter-rouge">(filename, content)</code> 映射到若干 <code class="language-plaintext highlighter-rouge">(word, count)</code>，最简单的映射规则是：对于每一个出现在 <code class="language-plaintext highlighter-rouge">content</code> 中的 <code class="language-plaintext highlighter-rouge">word</code>，映射到 <code class="language-plaintext highlighter-rouge">(word, 1)</code>。而 Reduce 是 <code class="language-plaintext highlighter-rouge">(word, list(count))</code> 映射到 <code class="language-plaintext highlighter-rouge">(word, total_count)</code>，映射的规则就是 <code class="language-plaintext highlighter-rouge">total_count = sum(list(count))</code>。<code class="language-plaintext highlighter-rouge">mrsequential.go</code> 中给出了单机顺序 MapReduce 的实现。</p>
+
+<p>实际我们并不需要关心映射规则，实验中 <code class="language-plaintext highlighter-rouge">mapf</code> 和 <code class="language-plaintext highlighter-rouge">reducef</code> 是以接口的方式提供的。我们只要关注函数的签名分别是 <code class="language-plaintext highlighter-rouge">(string, string) -&gt; list(string, string)</code> 和 <code class="language-plaintext highlighter-rouge">(string, list(string)) -&gt; string</code>，<code class="language-plaintext highlighter-rouge">reducef</code> 这里的 <code class="language-plaintext highlighter-rouge">string</code> 实际上就是 <code class="language-plaintext highlighter-rouge">(string, string)</code> 的格式化输出形式。</p>
+
+<h3 id="rpc">RPC</h3>
+
+<p>RPC 只需要 worker 到 master 单向调用，我这里设计了四个 RPC 分别表示 map 和 reduce 两种任务的申请和完成。另外 worker 需要从 master 得到 map 和 reduce 任务的数量，也需要一个 RPC。有些时候 Args 和 Reply 是不需要的，这里为了方便设计两个空结构体。全部 RPC 如下。</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">NilArgs</span> <span class="k">struct</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">NilReply</span> <span class="k">struct</span> <span class="p">{</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">GetNReply</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">NMap</span>    <span class="kt">int</span>
+	<span class="n">NReduce</span> <span class="kt">int</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">MapRequestReply</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">MapTaskID</span> <span class="kt">int</span>
+	<span class="n">Filename</span>  <span class="kt">string</span>
+	<span class="n">Success</span>   <span class="kt">bool</span>
+	<span class="n">Retry</span>     <span class="kt">bool</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ReduceRequestReply</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">ReduceTaskID</span> <span class="kt">int</span>
+	<span class="n">Success</span>      <span class="kt">bool</span>
+	<span class="n">Retry</span>        <span class="kt">bool</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">MapTaskDoneArgs</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">MapTaskID</span> <span class="kt">int</span>
+<span class="p">}</span>
+
+<span class="k">type</span> <span class="n">ReduceTaskDoneArgs</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">ReduceTaskID</span> <span class="kt">int</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>注意 Go 的结构成员变量首字母大写视为 public，否则视为 private。</p>
+
+<h3 id="worker">worker</h3>
+
+<p>worker 的逻辑很简单，首先初始化所需变量，一个无限循环请求 map task 直到 map task 全部完成，然后一个无限循环请求 reduce task，直到 reduce task 全部完成，然后结束。</p>
+
+<p>请求 map 的循环如下，请求 reduce 基本一模一样</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="p">{</span>
+    <span class="n">mapRequestReply</span> <span class="o">:=</span> <span class="n">MapRequestReply</span><span class="p">{}</span>
+    <span class="n">call</span><span class="p">(</span><span class="s">"Master.MapRequest"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">NilArgs</span><span class="p">{},</span> <span class="o">&amp;</span><span class="n">mapRequestReply</span><span class="p">)</span>
+    <span class="k">if</span> <span class="o">!</span><span class="n">mapRequestReply</span><span class="o">.</span><span class="n">Success</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="n">mapRequestReply</span><span class="o">.</span><span class="n">Retry</span> <span class="p">{</span>
+            <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="s">"waiting for map"</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">Sleep</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">Second</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="s">"map all done"</span><span class="p">)</span>
+            <span class="k">break</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="n">mapTaskID</span> <span class="o">:=</span> <span class="n">mapRequestReply</span><span class="o">.</span><span class="n">MapTaskID</span>
+    <span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"map %v running</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">mapTaskID</span><span class="p">)</span>
+    
+    <span class="c">// ...</span>
+
+    <span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"map %v done</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">mapTaskID</span><span class="p">)</span>
+    <span class="n">call</span><span class="p">(</span><span class="s">"Master.MapTaskDone"</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">MapTaskDoneArgs</span><span class="p">{</span><span class="n">mapTaskID</span><span class="p">},</span> <span class="o">&amp;</span><span class="n">NilReply</span><span class="p">{})</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>map task 的数量就是 txt 文件的数量，而 reduce task 的数量是给定的 10，我们最后的输出文件数是 reduce task 的数量。</p>
+
+<p>每个 map worker 拿到一个 txt 文件，把 <code class="language-plaintext highlighter-rouge">(word, count)</code> 输出到 <code class="language-plaintext highlighter-rouge">mr-out-{mapTaskID}-{reduceTaskID}</code> 中，这里的 <code class="language-plaintext highlighter-rouge">reduceTaskID</code> 通过 <code class="language-plaintext highlighter-rouge">hash(word)%reduceTaskN</code> 计算。也就是我们会有 <code class="language-plaintext highlighter-rouge">mapTaskN*reduceTaskN</code> 个中间文件。</p>
+
+<p>每个 reduce worker 根据自己的 <code class="language-plaintext highlighter-rouge">reduceTaskID</code> 拿到 mapTaskN 个中间文件，输出到 <code class="language-plaintext highlighter-rouge">mr-out-{reduceTaskID}</code> 。</p>
+
+<p>这种设计保证了文件读写不需要加锁，reduce worker 在发送 done 之前可以把自己负责的中间文件删除。</p>
+
+<h3 id="master">master</h3>
+
+<p>master 用一个结构体存储状态信息和对应的锁。</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">type</span> <span class="n">TaskStateType</span> <span class="kt">int</span>
+
+<span class="k">const</span> <span class="p">(</span>
+	<span class="n">TaskStateReady</span>   <span class="n">TaskStateType</span> <span class="o">=</span> <span class="m">0</span>
+	<span class="n">TaskStateRunning</span> <span class="n">TaskStateType</span> <span class="o">=</span> <span class="m">1</span>
+	<span class="n">TaskStateDone</span>    <span class="n">TaskStateType</span> <span class="o">=</span> <span class="m">2</span>
+<span class="p">)</span>
+
+<span class="k">type</span> <span class="n">Master</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">files</span>                <span class="p">[]</span><span class="kt">string</span>
+	<span class="n">nMap</span>                 <span class="kt">int</span>
+	<span class="n">nReduce</span>              <span class="kt">int</span>
+	<span class="n">nMapDone</span>             <span class="kt">int</span>
+	<span class="n">nReduceDone</span>          <span class="kt">int</span>
+	<span class="n">mapTaskState</span>         <span class="p">[]</span><span class="n">TaskStateType</span>
+	<span class="n">reduceTaskState</span>      <span class="p">[]</span><span class="n">TaskStateType</span>
+	<span class="n">nMapDoneMutex</span>        <span class="n">sync</span><span class="o">.</span><span class="n">RWMutex</span>
+	<span class="n">nReduceDoneMutex</span>     <span class="n">sync</span><span class="o">.</span><span class="n">RWMutex</span>
+	<span class="n">mapTaskStateMutex</span>    <span class="n">sync</span><span class="o">.</span><span class="n">Mutex</span>
+	<span class="n">reduceTaskStateMutex</span> <span class="n">sync</span><span class="o">.</span><span class="n">Mutex</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>master 需要提供各种 RPC 接口，以 MapRequest 为例</p>
+
+<ol>
+  <li>如果 nMapDone 等于 nMap，表明 map 已经全部结束，请求失败且不用重试</li>
+  <li>如果 nMapDone 小于 nMap，但找不到一个 <code class="language-plaintext highlighter-rouge">Ready</code> 的任务，表明有任务在 <code class="language-plaintext highlighter-rouge">Running</code> 状态，请求失败且需要重试，防止之后 <code class="language-plaintext highlighter-rouge">Running</code> 的任务失败</li>
+  <li>如果找到 Ready 状态的任务，请求成功，返回 <code class="language-plaintext highlighter-rouge">mapTaskID</code>，标记任务为 <code class="language-plaintext highlighter-rouge">running</code>，实验要求最多等待 10 秒，这里设计一个定时函数，10 秒后将任务标记回 <code class="language-plaintext highlighter-rouge">Ready</code></li>
+</ol>
+
+<p>不加锁的版本</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span> <span class="p">(</span><span class="n">m</span> <span class="o">*</span><span class="n">Master</span><span class="p">)</span> <span class="n">MapRequest</span><span class="p">(</span><span class="n">args</span> <span class="o">*</span><span class="n">NilArgs</span><span class="p">,</span> <span class="n">reply</span> <span class="o">*</span><span class="n">MapRequestReply</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">nMapDone</span> <span class="o">==</span> <span class="n">m</span><span class="o">.</span><span class="n">nMap</span> <span class="p">{</span>
+		<span class="n">reply</span><span class="o">.</span><span class="n">Success</span> <span class="o">=</span> <span class="no">false</span>
+		<span class="n">reply</span><span class="o">.</span><span class="n">Retry</span> <span class="o">=</span> <span class="no">false</span>
+		<span class="k">return</span> <span class="no">nil</span>
+	<span class="p">}</span>
+	<span class="k">for</span> <span class="n">i</span> <span class="o">:=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">m</span><span class="o">.</span><span class="n">nMap</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+		<span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mapTaskState</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">TaskStateReady</span> <span class="p">{</span>
+			<span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"map %v running</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+			<span class="n">m</span><span class="o">.</span><span class="n">mapTaskState</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskStateRunning</span>
+			<span class="n">reply</span><span class="o">.</span><span class="n">MapTaskID</span> <span class="o">=</span> <span class="n">i</span>
+			<span class="n">reply</span><span class="o">.</span><span class="n">Filename</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+			<span class="n">reply</span><span class="o">.</span><span class="n">Success</span> <span class="o">=</span> <span class="no">true</span>
+			<span class="n">_</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">AfterFunc</span><span class="p">(</span><span class="m">10</span><span class="o">*</span><span class="n">time</span><span class="o">.</span><span class="n">Second</span><span class="p">,</span> <span class="k">func</span><span class="p">()</span> <span class="p">{</span>
+				<span class="k">if</span> <span class="n">m</span><span class="o">.</span><span class="n">mapTaskState</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">TaskStateRunning</span> <span class="p">{</span>
+					<span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"map %v crash</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+					<span class="n">m</span><span class="o">.</span><span class="n">mapTaskState</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskStateReady</span>
+				<span class="p">}</span>
+			<span class="p">})</span>
+			<span class="k">return</span> <span class="no">nil</span>
+		<span class="p">}</span>
+	<span class="p">}</span>
+	<span class="n">reply</span><span class="o">.</span><span class="n">Success</span> <span class="o">=</span> <span class="no">false</span>
+	<span class="n">reply</span><span class="o">.</span><span class="n">Retry</span> <span class="o">=</span> <span class="no">true</span>
+
+	<span class="k">return</span> <span class="no">nil</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">MapTaskDone</code> 的实现很简单，这里同样给出不加锁的版本</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">func</span> <span class="p">(</span><span class="n">m</span> <span class="o">*</span><span class="n">Master</span><span class="p">)</span> <span class="n">MapTaskDone</span><span class="p">(</span><span class="n">args</span> <span class="o">*</span><span class="n">MapTaskDoneArgs</span><span class="p">,</span> <span class="n">reply</span> <span class="o">*</span><span class="n">NilReply</span><span class="p">)</span> <span class="kt">error</span> <span class="p">{</span>
+	<span class="n">mapTaskID</span> <span class="o">:=</span> <span class="n">args</span><span class="o">.</span><span class="n">MapTaskID</span>
+	<span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"map %v done</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">mapTaskID</span><span class="p">)</span>
+	<span class="n">m</span><span class="o">.</span><span class="n">mapTaskState</span><span class="p">[</span><span class="n">mapTaskID</span><span class="p">]</span> <span class="o">=</span> <span class="n">TaskStateDone</span>
+	<span class="n">m</span><span class="o">.</span><span class="n">nMapDone</span><span class="o">++</span>
+
+	<span class="k">return</span> <span class="no">nil</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>两个对应的 reduce RPC 基本一模一样，实现完之后可以自己测试单 worker 的结果是否正确的。然后把所有共享变量加锁，就能通过测试了。</p>
+
+<h3 id="test-result">Test Result</h3>
+
+<p>注意测试的时候要开 <code class="language-plaintext highlighter-rouge">--race</code>，因为就算加锁出错也可能通过测试，要保证检测不出 data race，另外一定要多跑几遍没错才可以。</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>*** Starting wc test.
+2020/07/26 17:08:45 rpc.Register: method "Done" has 1 input parameters; needs exactly three
+--- wc test: PASS
+*** Starting indexer test.
+2020/07/26 17:08:55 rpc.Register: method "Done" has 1 input parameters; needs exactly three
+--- indexer test: PASS
+*** Starting map parallelism test.
+2020/07/26 17:09:00 rpc.Register: method "Done" has 1 input parameters; needs exactly three
+--- map parallelism test: PASS
+*** Starting reduce parallelism test.
+2020/07/26 17:09:08 rpc.Register: method "Done" has 1 input parameters; needs exactly three
+--- reduce parallelism test: PASS
+*** Starting crash test.
+2020/07/26 17:09:18 rpc.Register: method "Done" has 1 input parameters; needs exactly three
+--- crash test: PASS
+*** PASSED ALL TESTS
+</code></pre></div></div>
+
+<h3 id="more">More</h3>
+
+<p>Hint 中提到 <code class="language-plaintext highlighter-rouge">To ensure that nobody observes partially written files in the presence of crashes, the MapReduce paper mentions the trick of using a temporary file and atomically renaming it once it is completely written.</code></p>
+
+<p>当时没按照这个做也通过了测试。考虑真实环境中如果 map worker 10 秒还没有完成任务，master 会把他的任务重新分配。虽然重新分配的另一个 map worker 会首先删除中间文件，但可能在写的过程中上一个 worker 也在写这个文件，这时就会发生错误。而存了 tmp 之后，就算之前的 worker 完成后覆盖掉新的 worker 写的中间文件，但 reduce 观察到的结果还是正确的。</p>
+
+:ET
