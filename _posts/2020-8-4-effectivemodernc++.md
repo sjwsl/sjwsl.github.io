@@ -1,5 +1,5 @@
 ---
-layout: post
+# layout: post
 title: Effective Modern C++
 categories: 
     - Reading Notes
