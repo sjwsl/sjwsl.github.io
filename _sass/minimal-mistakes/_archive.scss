@@ -74,6 +74,7 @@
 
 .archive__item-excerpt {
   margin-top: 0;
+  word-wrap: break-word;
   font-size: $type-size-6;
 
   & + p {
