@@ -3,6 +3,14 @@ permalink: /about/
 title: "About"
 ---
 
-Tempor velit sint sunt ipsum tempor enim ad qui ullamco. Est dolore anim ad velit duis dolore minim sunt aliquip amet commodo labore. Ut eu pariatur aute ea aute excepteur laborum. Esse ea esse excepteur minim mollit qui cillum excepteur ex dolore magna. Labore deserunt fugiat incididunt incididunt sint ea. Consequat dolore aute laboris quis proident quis non et est consectetur ex eiusmod sit culpa.
+I am a student in the School of Software Engineering at East China Normal University.
 
-Cupidatat ea do et in excepteur in. Ad nostrud ut est esse eu duis ea sunt eiusmod. Aliquip tempor veniam sint elit fugiat. Velit incididunt laboris amet incididunt labore dolore irure velit excepteur commodo deserunt laborum. Consectetur eu fugiat veniam veniam Lorem labore magna eiusmod. Ea occaecat reprehenderit pariatur consectetur minim labore ut aliquip.
+My main interests and expertise are Linux system programming and distributed systems. 
+
+I usually write code in C++, and occasionally use Python for little tools, Golang for distributed systems and Lisp just for fun. 
+
+I worked for Tencent (2020.05 - 2020.07), Tusimple (2020.07- 2020.09) as a software engineer (intern).
+
+I am an open source enthusiast.
+
+Contact me: <xts.sjwsl@gmail.com>
