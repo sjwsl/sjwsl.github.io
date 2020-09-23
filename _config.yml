@@ -67,7 +67,7 @@ author:
     - label: "Website"
       icon: "fas fa-fw fa-link"
       url: "https://sjwsl.github.io"
-      - label: "GitHub"
+    - label: "GitHub"
       icon: "fab fa-fw fa-github"
       url: "https://github.com/sjwsl"
 
