@@ -1,6 +1,6 @@
 ---
 # layout: post
-title: Effective Modern C++
+title: Effective Modern C++ Reading Notes
 categories: 
     - Reading Notes
 tag:
