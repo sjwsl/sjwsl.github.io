@@ -69,7 +69,7 @@ author:
       url: "https://sjwsl.github.io"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://sjwsl.github.com/"
+      url: ”https://github.com/sjwsl“
 
 footer:
   links:
@@ -78,7 +78,7 @@ footer:
       url: "https://sjwsl.github.io"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://sjwsl.github.com/"
+      url: "https://github.com/sjwsl"
 
 defaults:
   # _posts
