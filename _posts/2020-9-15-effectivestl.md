@@ -8,7 +8,7 @@ tag:
     - STL
 ---
 
-*Effective STL* Reading Notes
+*Effective STL* Reading Note
 
 ## 引言
 
