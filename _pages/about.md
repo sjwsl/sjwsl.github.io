@@ -1,6 +1,6 @@
 ---
 permalink: /about/
-title: "About Me"
+title: "About me"
 ---
 
 I am a student in the School of Software Engineering at East China Normal University.
