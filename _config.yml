@@ -26,7 +26,7 @@ search: true
 # Build settings
 encoding: UTF-8
 # teaser: /assets/teasers/git.jpg
-# locale: zh-CN
+locale: "en-US"
 markdown: kramdown
 remote_theme: sjwsl/minimal-mistakes
 # Outputting
