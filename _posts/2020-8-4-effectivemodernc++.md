@@ -7,7 +7,7 @@ tag:
     - C++
 ---
 
-*Effective Modern C++* reading notes
+42 specific ways to improve your use of C++11 and C++14
 
 ## Type Dedution
 
