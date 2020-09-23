@@ -28,7 +28,7 @@ encoding: UTF-8
 # teaser: /assets/teasers/git.jpg
 # locale: zh-CN
 markdown: kramdown
-remote_theme: sjwl/minimal-mistakes
+remote_theme: sjwsl/minimal-mistakes
 # Outputting
 permalink: /:categories/:title/
 paginate: 5 # amount of posts to show
