@@ -92,7 +92,7 @@ func After(t time.Duration) <-chan bool {
 }
 ```
 
-Note that the goroutine may be blocked on `c <- true` forever if no one receive it, but it will be Garbage-collected Automatically.
+Note that the goroutine may be blocked on `c <- true` forever if no one receive it, but it will be Garbage-collected. So never worry about it.
 
 ### Multiplexing: let whosoever is ready talk
 
@@ -137,7 +137,7 @@ for i := 0; i < 10; i++ {
 quit <- true
 ```
 
-Two-way waiting
+**Two-way waiting**
 
 ```go
 quit <- true
