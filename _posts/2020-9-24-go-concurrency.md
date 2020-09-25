@@ -12,11 +12,17 @@ Concurrency is the key to designing high performance network services. Go's conc
 
 [Google I/O 2012 - Go Concurrency Patterns](https://www.youtube.com/watch?v=f6kdp27TYZs)
 
-## The Go approach
+## Channel: the Go approach
 
 Don't communicate by sharing memory, share memory by communicating. 
 
-~~lock, mutex, conditional variables~~ $\rightarrow$ **channels**
+~~lock, mutex, conditional variables~~ $\rightarrow$ **channel**
+
+```go 
+chan   // read-write
+<-chan // read only
+chan<- // write only
+```
 
 ## Concurrency patterns
 
@@ -25,7 +31,7 @@ Don't communicate by sharing memory, share memory by communicating.
 channel as service
 
 ```go
-func Generator(msg string) chan string {
+func Generator(msg string) <-chan string {
     c := make(chan string)
     go func() {
         for i := 0; ; i++ {
@@ -42,11 +48,7 @@ for i := 0; i < 5; i++ {
 }
 ```
 
-### Select: a control structure unique to concurrency
-
-A control structure unique to concurrency. The reason channels and goroutines are build into Go.
-
-### Timeout using select
+### Timeout
 
 Timeout for a single execute
 
@@ -54,7 +56,7 @@ Timeout for a single execute
 c := Generator("Bob")
 for {
     select {
-    case s:= <-:
+    case s:= <-c:
         fmt.Println(s)
     case <-time.After(time.Second):
         return
@@ -69,7 +71,7 @@ c := Generator("Bob")
 timeout := time.After(time.Second)
 for {
     select {
-    case s:= <-:
+    case s:= <-c:
         fmt.Println(s)
     case <-timeout:
         return
@@ -80,15 +82,17 @@ for {
 `time.After` is also a Generator like
 
 ```go
-func After(t time.Duration) chan bool {
+func After(t time.Duration) <-chan bool {
     c := make(chan bool)
     go func() {
         time.Sleep(t)
-        c <- true
+        c <- true 
     }
     return c
 }
 ```
+
+Note that the goroutine may be blocked on `c <- true` forever if no one receive it, but it will be Garbage-collected Automatically.
 
 ### Multiplexing: let whosoever is ready talk
 
@@ -107,9 +111,49 @@ func funIn(input1, input2 <-chan string) <-chan string {
 }
 ```
 
+### Quit channel: tell a Generator to stop
 
+```go
+func Generator(msg string, quit <-chan bool) <-chan string {
+    c := make(chan string)
+    go func() {
+        for i := 0; ; i++ {
+            select {
+                case c <- fmt.Sprintf("%s: %d", msg, i):
+                    time.Sleep(time.Second)
+                case <-quit:
+                    return
+            }
+        }
+    }()
+    return c
+}
 
+quit := make(chan bool)
+c := Generator("Bob", quit)
+for i := 0; i < 10; i++ {
+    fmt.Println(<-c)
+}
+quit <- true
+```
 
+Two-way waiting
+
+```go
+quit <- true
+<-quit
+
+...
+    select {
+    case c <- fmt.Sprintf("%s: %d", msg, i):
+        time.Sleep(time.Second)
+    case <-quit:
+        // do something like GC
+        quit <- true
+        return
+    }
+...
+```
 
 
 ## Incorrect synchronization
