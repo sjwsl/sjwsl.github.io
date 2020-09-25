@@ -20,6 +20,96 @@ Don't communicate by sharing memory, share memory by communicating.
 
 ## Concurrency patterns
 
+### Generator: function that returns a channel
+
+channel as service
+
+```go
+func Generator(msg string) chan string {
+    c := make(chan string)
+    go func() {
+        for i := 0; ; i++ {
+            c <- fmt.Sprintf("%s: %d", msg, i)
+            time.Sleep(time.Second)
+        }
+    }()
+    return c
+}
+
+c := Generator("Bob")
+for i := 0; i < 5; i++ {
+    fmt.Printf("%s", <-c)
+}
+```
+
+### Select: a control structure unique to concurrency
+
+A control structure unique to concurrency. The reason channels and goroutines are build into Go.
+
+### Timeout using select
+
+Timeout for a single execute
+
+```go
+c := Generator("Bob")
+for {
+    select {
+    case s:= <-:
+        fmt.Println(s)
+    case <-time.After(time.Second):
+        return
+    }
+}
+```
+
+Timeout for whole conversation
+
+```go
+c := Generator("Bob")
+timeout := time.After(time.Second)
+for {
+    select {
+    case s:= <-:
+        fmt.Println(s)
+    case <-timeout:
+        return
+    }
+}
+```
+
+`time.After` is also a Generator like
+
+```go
+func After(t time.Duration) chan bool {
+    c := make(chan bool)
+    go func() {
+        time.Sleep(t)
+        c <- true
+    }
+    return c
+}
+```
+
+### Multiplexing: let whosoever is ready talk
+
+```go
+func funIn(input1, input2 <-chan string) <-chan string {
+    c := make(chan string)
+    go func() {
+        select{
+        case v1 := <-input1:
+            c <- v1
+        case v2 := <-input2:
+            c <- v2
+        }
+    }
+    return c
+}
+```
+
+
+
+
 
 
 ## Incorrect synchronization
