@@ -349,3 +349,20 @@ static_cast<Widget>(*iter).setAttr("123")
 
 ### 第 23 条：考虑用排序的 `vector` 代替关联容器
 
+如果查找几乎从不和插入和删除混在一起，排序的 `vector` 配合 `binary_search`、`lower_bound`、`equal_range` 通常会比 `set` 和 `map` 有更快的速度和更少的内存。
+
+虽然理论时间复杂度都是 `log` 级的，但 `vector` 速度更快的原因主要是它的内存是连续的，这意味着更少的缺页错误。另外二分查找的复杂度常数通常也比平衡二叉树好得多。
+
+对 `set` 的模拟很简单，模拟 `map` 则有一些麻烦。我们在 `vector` 中存储 一个 pair `Data`，在比较函数子类中需要重载三种 `()`
+
+```c++
+class Compare {
+    public:
+    bool operator()(const Data& lhs, const Data& rhs) const;
+    bool operator()(const Data::key_type& lhs, const Data& rhs) const;
+    bool operator()(const Data& lhs, const Data::key_type& rhs) const;
+}
+```
+
+这是因为排序函数需要比较两个 `Data` 的大小，而查找函数需要比较 `Data::key_type`和 `Data` 的大小。
+
