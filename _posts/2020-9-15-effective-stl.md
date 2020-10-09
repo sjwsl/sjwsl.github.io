@@ -280,7 +280,7 @@ vector<>().swap(v)
 ```c++
 struct CIStringCompare:
     public binary_function<string, string, bool>{ // 该基类见第 40 条
-    bool operator()(const string& lhs, const string& rhs)const {
+    bool operator()(const string& lhs, const string& rhs) const {
         return ciStringCompare(lhs, rhs); // 见第 35 条的实现
     }
 }
@@ -301,4 +301,16 @@ ciss.insert("stl") // "stl" 不会被插入
 
 而对于非标准的基于散列表的非排序关联容器（如 `hash_map`），则有基于想等和基于等价的两种设计（见第 25 条）。
 
-### 第 20 条：
+### 第 20 条：为包含指针的关联容器指定比较类型
+
+下面的函数子类可以作为包含指针的关联容器的比较类型
+
+```c++
+strcut DereferenceLess{
+    template<typename PtrT> bool operator(PtrT p1, PtrT p2) const {
+        return *p1 < *p2;
+    }
+}
+```
+
+### 第 21 条：总是让比较函数在等值时返回 `false`
