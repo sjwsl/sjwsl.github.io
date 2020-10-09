@@ -148,9 +148,7 @@ C++11 后，这条可以简单地用 `unique_ptr` 或 `shared_ptr` 避免。
 
 ### 第9条：选择删除元素的方法
 
-删除容器中所有值为 1963 的元素。
-
-对于标准序列容器，最简单的写法是 erase-remove
+删除容器中所有值为 1963 的元素。对于标准序列容器，最简单的写法是 erase-remove
 ```c++
 c.erase(remove(c.begin(), c.end(), 1963), c.end());
 ```
@@ -165,9 +163,7 @@ c.remove(1963);
 c.erase(1963)
 ```
 
-有 ``BadValue(int x)``，删除容器中所有的 bad value。
-
-对于标准序列容器，简单地使用 `remove_if` 替换 `remove` 即可
+有 ``BadValue(int x)``，删除容器中所有的 bad value。对于标准序列容器，简单地使用 `remove_if` 替换 `remove` 即可
 ```c++
 c.erase(remove_if(c.begin(), c.end(), BadValue), c.end());
 c.remove_if(BadValue); // list
@@ -218,3 +214,13 @@ STL 的所有容器都只保证多线程同时读是线程安全的。
 ### 第14条：使用 reserve 来避免不必要的重新分配
 
 vector 和 string 的容量会自动增长。当需要更多空间时，会重新分配一块大小为当前容量某个倍数的内存（大多数实现为 2 倍），然后把容器所有元素复制到新的内存，最后析构原内存中的对象并释放旧内存。需要注意的是，重新分配后容器原来所有的指针、迭代器、引用都会失效。
+
+### 第15条：string 的实现多样性
+
+### 第16条：vector 和 string 和 C 风格的兼容
+
+对于一个 `vector v`，因为内存是连续的， `&v[0]` 就可以当作 C 风格数组使用。但是要注意判断 `v.empty()==false`。`v.begin()` 返回的是迭代器，并不总是可以当成指针（见第 50 条）。
+
+`vector` 可以通过 `&v[0]` 向 C 风格数组读写，其他 STL 容器和数组的交互可以通过 `vector` 来完成。
+
+### 第17条：使用 `swap` 去除多余的容量
