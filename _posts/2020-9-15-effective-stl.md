@@ -22,11 +22,11 @@ STL 包括迭代器、容器、函数对象和算法。
 - 随机访问迭代器（random access iterator）：在双向迭代器的基础上，支持迭代器算术
 
 容器分类
-- 标准序列容器：vector string deque list
-- 标准关联容器：set multiset map multimap
-- 非标准序列容器： slist（单向链表） rope
-- 非标准关联容器：hash_set hash_multiset hash_map hash_multimap
-- 标准的非 STL 容器：数组 bitset valarray stack queue priority_queue
+- 标准序列容器：`vector` `string` `deque` `list`
+- 标准关联容器：`set` `multiset` `map` `multimap`
+- 非标准序列容器： `slist`（单向链表） `rope`
+- 非标准关联容器：`hash_set` `hash_multiset` `hash_map` `hash_multimap`
+- 标准的非 STL 容器：数组 `bitset` `valarray` `stack` `queue` `priority_queue`
 
 所有重载了`()`的类都称为一个**函数子类（functor class）**，这些类的实例称为**函数对象（function object）**或**函数子（functor）**。
 
@@ -59,7 +59,7 @@ STL 包括迭代器、容器、函数对象和算法。
 
 不要尝试把派生类插入到基类容器中，否则在复制的过程中会导致**剥离（slicing）**，丢失派生类特有的所有信息。如果想这么做，应该构造一个存放智能指针的容器。
 
-### 第4条：用`empty()`而不是`size()==0`
+### 第4条：用 `empty()` 而不是 `size()==0`
 
 只是因为一些 list 的实现中 `size()` 耗费线性时间
 
@@ -122,7 +122,7 @@ void container::erase(iterator begin, iterator end);
 void container::assign(InputIterator begin, InputIterator end);
 ```
 
-### 第6条：小心C++的分析机制
+### 第6条：小心 C++ 的分析机制
 
 ```c++
 ifstream dataFile("ints.data");
@@ -138,7 +138,7 @@ istream_iterator<int> end;
 list<int> data(begin, end);
 ```
 
-### 第7条：容器析构时不负责 delete 存放的指针
+### 第7条：容器析构时不负责 `delete` 存放的指针
 
 C++11 后，这条可以简单地用 `unique_ptr` 或 `shared_ptr` 避免。
 
@@ -203,21 +203,21 @@ for (auto iter = c.begin(); iter != c.end(); ) {
 
 STL 的所有容器都只保证多线程同时读是线程安全的。
 
-## vector 和 string
+## `vector` 和 `string`
 
-### 第13条：优先使用 vector 和 string 而不是内建数组
+### 第13条：优先使用 `vector` 和 `string` 而不是内建数组
 
 使用 vector 和 string 可以免除内存管理的烦恼
 
 有一种情况下要注意 string 的使用。有的 string 实现用到了引用计数，在多线程下同步控制的消耗很大，这种情况下可以用 `vector<char>` 代替。
 
-### 第14条：使用 reserve 来避免不必要的重新分配
+### 第14条：使用 `reserve` 来避免不必要的重新分配
 
 vector 和 string 的容量会自动增长。当需要更多空间时，会重新分配一块大小为当前容量某个倍数的内存（大多数实现为 2 倍），然后把容器所有元素复制到新的内存，最后析构原内存中的对象并释放旧内存。需要注意的是，重新分配后容器原来所有的指针、迭代器、引用都会失效。
 
-### 第15条：string 的实现多样性
+### 第15条：`string` 的实现多样性
 
-### 第16条：vector 和 string 和 C 风格的兼容
+### 第16条：`vector` 和 `string` 和 C 风格的兼容
 
 对于一个 `vector v`，因为内存是连续的， `&v[0]` 就可以当作 C 风格数组使用。但是要注意判断 `v.empty()==false`。`v.begin()` 返回的是迭代器，并不总是可以当成指针（见第 50 条）。
 
