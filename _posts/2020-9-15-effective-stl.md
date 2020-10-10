@@ -366,3 +366,10 @@ class Compare {
 
 这是因为排序函数需要比较两个 `Data` 的大小，而查找函数需要比较 `Data::key_type`和 `Data` 的大小。
 
+### 第 24 条：`map::operator[]` 和  `map::insert`
+
+用 `operator[]` 更新 `map` 中存在的元素通常比 `insert` 更快，而添加新的元素则相反。这在效率至关重要的时候需要做出选择。
+
+### 第 25 条：关注非 STL 的散列容器
+
+### 第 26 条：
