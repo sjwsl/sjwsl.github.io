@@ -548,3 +548,5 @@ find_if(v.begin(), v.end(), bind2nd(ptr_fun(Greater), 40));
 最简单的可配接方式是继承 STL 的模版 `unary_function` 和 `binary_function`。
 
 如果函数子类是无状态的，最好定义为 `struct` 而不是 `class`。
+
+### 第 41 条：
