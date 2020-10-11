@@ -376,3 +376,27 @@ class Compare {
 
 ## 算法
 
+### 第 30 条：确保容器容量足够大
+
+用 `insert` 向容器末尾添加新的对象，这样做是错误的
+
+```c++
+insert(values.begin(), values.end(), results.end());
+```
+
+因为这会尝试为 `*results.end()` 赋值。正确的做法是使用插入迭代器
+
+```c++
+insert(values.begin(), values.end(), back_inserter(results));
+```
+
+这会自动调用 `push_back`。其他的插入迭代器同理，例如我们可以这样在特定位置插入元素
+
+```c++
+insert(values.begin(), values.end(), inserter(results, results.begin()+results.size()/2));
+```
+ 
+当然这样做对连续内存的容器效率并不高。
+
+### 第 31 条：排序有关的选择
+
