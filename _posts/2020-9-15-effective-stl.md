@@ -366,7 +366,7 @@ class Compare {
 
 这是因为排序函数需要比较两个 `Data` 的大小，而查找函数需要比较 `Data::key_type`和 `Data` 的大小。
 
-### 第 24 条：`map::operator[]` 和  `map::insert`
+### 第 24 条：`map::operator[]` 和 `map::insert`
 
 用 `operator[]` 更新 `map` 中存在的元素通常比 `insert` 更快，而添加新的元素则相反。这在效率至关重要的时候需要做出选择。
 
@@ -395,8 +395,71 @@ insert(values.begin(), values.end(), back_inserter(results));
 ```c++
 insert(values.begin(), values.end(), inserter(results, results.begin()+results.size()/2));
 ```
- 
+
 当然这样做对连续内存的容器效率并不高。
 
 ### 第 31 条：排序有关的选择
+
+找到最小的 20 个数并升序排列在容器的前 20 个位置
+
+```c++
+partial_sort(v.begin(), v.end() + 20, v.end());
+```
+
+找到最小的 20 个数字并放在前 20 个位置
+
+```c++
+nth_element(v.begin(), v.end() + 19, v.end());
+```
+
+找到大于 30 的数字放在容器前部
+
+```c++
+partition(v.begin(), v.end(), [](int x) { return x > 30; });
+```
+
+稳定排序用 `stable_sort` 和 `stable_partition`。更多的基于“能恰好完成功能”，而不是性能来选择算法。
+
+### 第 32 条：在 `remove` 之后 `erase`
+
+`remove` 并不真正删除容器中的元素，因为它只接受两个迭代器作为参数，并不能调用成员函数来删除元素。`remove` 只是把不需要删除的元素放在容器的前部，并返回后一个位置的迭代器。结合 `erase` 才可以真正删除元素
+
+```c++
+v.erase(remove(v.begin(), v.end(), 99), v.end());
+```
+
+同理，`remove_if` 和 `unique` 也要用类似的方法使用。
+
+而 `list` 的成员函数可以直接达到预期效果，并且更加高效
+
+```c++
+l.remove(99);
+l.unique();
+```
+
+### 第 33 条：小心对包含指针的容器使用 `remove`
+
+这条也是 C++11 之前的历史遗留问题。
+
+### 第 34 条：需要用有序区间作参数的算法
+
+二分查找系列：`binary_search` `lower_bound` `upper_bound` `equal_range`
+
+集合操作：`set_union` `set_intersection` `set_difference` `set_symmetric_difference`
+
+合并：`merge` `inplace_merge`
+
+包含：`includes`
+
+去重：`unique` `unique_copy`
+
+保证算法使用的排序函数和有序区间的排序函数一致
+
+```c++
+sort(v.begin(), v.end(), greater<int>());
+binary_search(v.begin(), v.end(), 5); // 错误
+binary_search(v.begin(), v.end(), 5, greater<int>()); // 正确
+```
+
+除 `unique` 和 `unique_copy` 外，所有要求有序区间的函数均使用等价性判断元素相同。这是因为 `unique` 实际上并不要求有序区间，它的标准定义是“删除每一组连续相等的元素，仅保留其中的第一个”，只是通常用来去重时要区间有序才能达到预期效果。
 
