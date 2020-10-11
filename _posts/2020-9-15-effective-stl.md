@@ -478,7 +478,7 @@ bool ciStringCompare(const string &s1, const string &s2) {
 
 ### 第 36 条：实现 `copy_if`
 
-C++11起 STL 已经提供 `copy_if`
+C++11 起 STL 已经提供 `copy_if`
 
 ```c++
 vector<int> v{1, 2, 3};
@@ -494,10 +494,10 @@ vv.erase(copy_if(v.begin(), v.end(), vv.begin(), [](int x) { return x > 1; }), v
 统计容器中字符串总长度
 
 ```c++
-size_t stringLengthSum(size_t sumSoFar, const string &s) {
+size_t StringLengthSum(size_t sumSoFar, const string &s) {
     return sumSoFar + s.size();
 }
-auto lengthSum = accumulate(v.begin(), v.end(), static_cast<size_t>(0), stringLengthSum);
+auto lengthSum = accumulate(v.begin(), v.end(), static_cast<size_t>(0), StringLengthSum);
 ```
 
 `accumulate` 的返回值类型和第三个参数相同。
@@ -509,6 +509,7 @@ auto lengthSum = accumulate(v.begin(), v.end(), static_cast<size_t>(0), stringLe
 ### 第 38 条：依照按值传递的原则设计函数子类
 
 STL 算法中总是按值传递函数子类，所以我们在设计函数子类时要注意
+
 1. 函数对象尽量小，否则复制开销很大
 2. 函数不能是多态的，即不得使用虚函数，否则会产生剥离（见第 3 条）
 
@@ -520,6 +521,30 @@ STL 算法很可能会复制传入的判别式函数，因此一定要确保判�
 
 ### 第 40 条：让函数子类可配接
 
+**配接器（adapter）** 接受一个函数子类，返回另一个函数子类。
 
+```c++
+bind1st(op, value)   //op(value , param)
+bind2nd(op, value)   //op(value, param)
+not1(op)             //! op(param)
+not2(op)             //! op(param1, param2)
+```
 
+例如，我们可以这样找到容器中所有大于 40 的数
 
+```c++
+find_if(v.begin(), v.end(), bind2nd(greater<int>, 40));
+```
+
+然而，普通函数是无法配接的，需要做转换
+
+```c++
+bool Greater(int a, int b) {
+    return a > b;
+}
+find_if(v.begin(), v.end(), bind2nd(ptr_fun(Greater), 40));
+```
+
+最简单的可配接方式是继承 STL 的模版 `unary_function` 和 `binary_function`。
+
+如果函数子类是无状态的，最好定义为 `struct` 而不是 `class`。
