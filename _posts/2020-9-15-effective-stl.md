@@ -463,3 +463,50 @@ binary_search(v.begin(), v.end(), 5, greater<int>()); // 正确
 
 除 `unique` 和 `unique_copy` 外，所有要求有序区间的函数均使用等价性判断元素相同。这是因为 `unique` 实际上并不要求有序区间，它的标准定义是“删除每一组连续相等的元素，仅保留其中的第一个”，只是通常用来去重时要区间有序才能达到预期效果。
 
+### 第 35 条：实现忽略大小写的字符串比较
+
+```c++
+bool ciCharLess(char c1, char c2) {
+    return tolower(static_cast<unsigned char>(c1)) < tolower(static_cast<unsigned char>(c2));
+}
+bool ciStringCompare(const string &s1, const string &s2) {
+    return lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), ciCharLess);
+}
+```
+
+`lexicographical_compare` 可以用于任何类型的值区间。
+
+### 第 36 条：实现 `copy_if`
+
+C++11起 STL 已经提供 `copy_if`
+
+```c++
+vector<int> v{1, 2, 3};
+vector<int> vv;
+vv.resize(v.size());
+vv.erase(copy_if(v.begin(), v.end(), vv.begin(), [](int x) { return x > 1; }), vv.end());
+```
+
+### 第 37 条：用 `accumulate` 和 `for_each` 进行区间操作
+
+用 `accumulate` 实现自定义统计，需要一个函数子类，它接受当前的统计值和下一个元素，返回一个新的统计值。
+
+统计容器中字符串总长度
+
+```c++
+size_t stringLengthSum(size_t sumSoFar, const string &s) {
+    return sumSoFar + s.size();
+}
+auto lengthSum = accumulate(v.begin(), v.end(), static_cast<size_t>(0), stringLengthSum);
+```
+
+`accumulate` 的返回值类型和第三个参数相同。
+
+`for_each` 的用法类似，只不过它需要一个 `void` 函数，接受一个元素并执行操作。
+
+## 函数子、函数子类、函数及其他
+
+### 第 38 条
+
+
+
