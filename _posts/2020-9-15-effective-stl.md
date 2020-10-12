@@ -521,14 +521,13 @@ STL 算法很可能会复制传入的判别式函数，因此一定要确保判�
 
 ### 第 40 条：让函数子类可配接
 
-**配接器（adapter）** 接受一个函数子类，返回另一个函数子类。
+（书中的 `ptr_fun`、`mem_fun`、`mem_fun_ptr`、`bind1st`、`bind2nd`、`not1`、`not2` 都已经过时）
 
-```c++
-bind1st(op, value)   //op(value , param)
-bind2nd(op, value)   //op(value, param)
-not1(op)             //! op(param)
-not2(op)             //! op(param1, param2)
-```
+### 第 41 条：函数配接器
+
+（书中的 `ptr_fun`、`mem_fun`、`mem_fun_ptr`、`bind1st`、`bind2nd`、`not1`、`not2` 都已经过时）
+
+**配接器（adapter）** 接受一个函数子类，返回另一个函数子类。C++11 后，我们可以用 `bind` 来作为 STL 算法饿的函数配接器
 
 例如，我们可以这样找到容器中所有大于 40 的数（书中的 `bind_2nd` 已经过时）
 
@@ -536,19 +535,44 @@ not2(op)             //! op(param1, param2)
 find_if(v.begin(), v.end(), bind(greater<int>(), std::placeholders::_1, 40));
 ```
 
-然而，普通函数是无法配接的，需要做转换（书中的 `ptr_fun` 已经过时）
+用 `for_each` 执行成员函数，成员函数有额外的第一个占位符表示对象本身
 
 ```c++
-bool Greater(int a, int b) {
-    return a > b;
-}
-find_if(v.begin(), v.end(), bind2nd(ref(Greater), 40));
+class Widget {
+    int x;
+    void func(int y) {
+        cout << x << " " << y;
+    }
+};
+
+vector<Widget> v;
+// ...
+for_each(v.begin(), v.end(), bind(&Widget::func, std::placeholders::_1, 10)); // 输出每个 Widget 的 x 和 10
 ```
 
-最简单的可配接方式是继承 STL 的模版 `unary_function` 和 `binary_function`。
+这个方法同样适用于对应的指针（智能指针）容器
 
-如果函数子类是无状态的，最好定义为 `struct` 而不是 `class`。
+```c++
+vector<unique_ptr<Widget>> vp;
+// ...
+for_each(vp.begin(), vp.end(), bind(&Widget::func, std::placeholders::_1, 10));
+```
 
-### 第 41 条：函数配接器
+用 `not1` 和 `not2` 可以构造新的函数子，但是对传入的函数有要求，最简单的方法是继承 STL 的类模版
 
-（书中的 `ptr_fun`、`mem_fun`、`mem_fun_ptr`、`bind1st`、`bind2nd`、`not1`、`not2` 都已经过时）
+```c++
+class LessThan10 : public unary_function<int, bool> {
+public:
+    bool operator()(const int x) const {
+        return x < 10;
+    }
+};
+
+find_if(v.begin(), v.end(), not1(LessThan10()));
+```
+
+C++17 以后，`not_fn` 取代了 `not1` 和 `not2`，且对传入的函数没有要求
+
+### 第 42 条：确保 `less<T>` 和 `operator<` 有相同的含义
+
+当我们需要在 STL 算法中使用不同的比较函数时，不要尝试特化 `less<T>`，而是临时自定义比较函数。
