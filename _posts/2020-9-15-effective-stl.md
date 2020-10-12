@@ -530,23 +530,25 @@ not1(op)             //! op(param)
 not2(op)             //! op(param1, param2)
 ```
 
-例如，我们可以这样找到容器中所有大于 40 的数
+例如，我们可以这样找到容器中所有大于 40 的数（书中的 `bind_2nd` 已经过时）
 
 ```c++
-find_if(v.begin(), v.end(), bind2nd(greater<int>, 40));
+find_if(v.begin(), v.end(), bind(greater<int>(), std::placeholders::_1, 40));
 ```
 
-然而，普通函数是无法配接的，需要做转换
+然而，普通函数是无法配接的，需要做转换（书中的 `ptr_fun` 已经过时）
 
 ```c++
 bool Greater(int a, int b) {
     return a > b;
 }
-find_if(v.begin(), v.end(), bind2nd(ptr_fun(Greater), 40));
+find_if(v.begin(), v.end(), bind2nd(ref(Greater), 40));
 ```
 
 最简单的可配接方式是继承 STL 的模版 `unary_function` 和 `binary_function`。
 
 如果函数子类是无状态的，最好定义为 `struct` 而不是 `class`。
 
-### 第 41 条：
+### 第 41 条：函数配接器
+
+（书中的 `ptr_fun`、`mem_fun`、`mem_fun_ptr`、`bind1st`、`bind2nd`、`not1`、`not2` 都已经过时）
