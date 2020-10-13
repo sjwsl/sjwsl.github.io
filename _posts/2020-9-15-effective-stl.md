@@ -568,10 +568,15 @@ public:
     }
 };
 
-find_if(v.begin(), v.end(), not1(LessThan10()));
+cout << *find_if(v.begin(), v.end(), not1(LessThan10()));
 ```
 
 C++17 以后，`not_fn` 取代了 `not1` 和 `not2`，且对传入的函数没有要求
+
+```c++
+auto LessThan10 = [](int x) { return x < 10; };
+cout << *find_if(v.begin(), v.end(), not_fn(LessThan10));
+```
 
 ### 第 42 条：确保 `less<T>` 和 `operator<` 有相同的含义
 
