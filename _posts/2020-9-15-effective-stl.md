@@ -374,6 +374,36 @@ class Compare {
 
 ## 迭代器
 
+### 第 26 条：优先使用 `iterator`
+
+### 第 27 条：使用 `distance` 和 `advance` 把 `const_iterator` 转换为 `iterator`
+
+强制类型转换不能把 `const_iterator` 转换为 `iterator`。下面的代码可以合法地完成转化
+
+```c++
+deque<int> d;
+deque<int>::const_iterator constIter;
+
+... // 让 constIter 指向 d 中某个位置
+
+deque<int>::iterator iter(d.begin());
+advance(iter, distance<deque<int>::const_iterator>(iter, consIter));
+```
+
+效率取决于是随机访问迭代器还是双向迭代器。 
+
+### 第 28 条：理解 `reverse_iterator` 的 `base()` 成员函数返回的结果
+
+```c++
+vector<int> v{1, 2, 3, 4, 5};
+vector<int>::reverse_iterator ri = find(v.rbegin(), v.rend(), 3);
+vector<int>::iterator i(ri.base());
+```
+
+![](/assets/images/effectivestl-2.png)
+
+### 第 29 条：对逐个字符的输入使用 `istreambuf_iterator`
+
 ## 算法
 
 ### 第 30 条：确保容器容量足够大
@@ -602,7 +632,7 @@ find(s.begin(), s.end(), 127) // O(n)
 
 ### 第 45 条：各种查找算法的用法
 
-![](../assets/images/effectivestl-1.png)
+![](/assets/images/effectivestl-1.png)
 
 ### 第 46 条：作为 STL 算法参数时，优先使用函数对象而不是函数
 
