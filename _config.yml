@@ -62,7 +62,8 @@ plugins:
 author:
   name   : "SJWSL"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Hacker and Painter"
+  bio    : "Software Engineer@PingCAP"
+  email  : "xts.sjwsl@gmail.com"
   links:
     - label: "Website"
       icon: "fas fa-fw fa-link"
