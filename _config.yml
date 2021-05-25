@@ -62,7 +62,7 @@ plugins:
 author:
   name   : "SJWSL"
   avatar : "/assets/images/bio-photo.jpg"
-  bio    : "Software Engineer@PingCAP"
+  bio    : "GPU Architect Intern@NVIDIA"
   email  : "xts.sjwsl@gmail.com"
   links:
     - label: "Website"
